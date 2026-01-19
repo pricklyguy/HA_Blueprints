@@ -1,5 +1,5 @@
 blueprint:
-  name: Zigbee2MQTT - 4 Button Fan + Light (KS240)
+  name: Zigbee2MQTT - 4 Button Remote for Ceiling Fan + Light
   description: >
     Button 1: single = light toggle, double = cycle brightness presets.
     Buttons 2/3/4: single = fan low/med/high, double = fan off.
