@@ -6,7 +6,7 @@ Collection of Home Assistant blueprints for automation and control.
 
 Control a fan and light using a 4-button Zigbee remote via Zigbee2MQTT.
 
-[![Import Blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https://raw.githubusercontent.com/pricklyguy/HA_Blueprints/main/blueprints/automation/zigbee2mqtt_ks240_fan_light_control.yaml)
+[![Import Blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https://raw.githubusercontent.com/pricklyguy/HA_Blueprints/main/blueprints/automation/zigbee_four_button_remote.yaml)
 
 ### Features
 - Button 1: Single press toggles light, double press cycles brightness (25/50/75/100%)
