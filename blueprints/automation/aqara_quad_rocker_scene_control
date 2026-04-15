@@ -43,14 +43,18 @@ variables:
 
 action:
   - choose:
-      # TOP ROCKER: Light Toggle
+      # --- TOP ROCKER (Light) ---
       - conditions: "{{ trigger.payload == 'single_top' }}"
         sequence:
           - action: light.toggle
             target:
               entity_id: "{{ light }}"
+      - conditions: "{{ trigger.payload == 'double_top' }}"
+        sequence: [] # Placeholder for double press
+      - conditions: "{{ trigger.payload == 'long_top' }}"
+        sequence: [] # Placeholder for long press
 
-      # CENTER ROCKER: Fan Cycle
+      # --- CENTER ROCKER (Fan) ---
       - conditions: "{{ trigger.payload == 'single_center' }}"
         sequence:
           - action: fan.turn_on
@@ -64,8 +68,12 @@ action:
                 {% elif current == 66 %} 100
                 {% else %} 0
                 {% endif %}
+      - conditions: "{{ trigger.payload == 'double_center' }}"
+        sequence: []
+      - conditions: "{{ trigger.payload == 'long_center' }}"
+        sequence: []
 
-      # BOTTOM ROCKER: Blind Up / Stop
+      # --- BOTTOM ROCKER (Blind Up) ---
       - conditions: "{{ trigger.payload == 'single_bottom' }}"
         sequence:
           - if:
@@ -79,8 +87,12 @@ action:
               - action: cover.open_cover
                 target:
                   entity_id: "{{ blind }}"
+      - conditions: "{{ trigger.payload == 'double_bottom' }}"
+        sequence: []
+      - conditions: "{{ trigger.payload == 'long_bottom' }}"
+        sequence: []
 
-      # WIRELESS ROCKER: Blind Down / Stop
+      # --- WIRELESS ROCKER (Blind Down) ---
       - conditions: "{{ trigger.payload == 'single_wireless' }}"
         sequence:
           - if:
@@ -94,3 +106,7 @@ action:
               - action: cover.close_cover
                 target:
                   entity_id: "{{ blind }}"
+      - conditions: "{{ trigger.payload == 'double_wireless' }}"
+        sequence: []
+      - conditions: "{{ trigger.payload == 'long_wireless' }}"
+        sequence: []
