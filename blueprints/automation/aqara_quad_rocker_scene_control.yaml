@@ -15,15 +15,13 @@ blueprint:
     light_entity:
       name: Light entity
       selector:
-        target:
-          entity:
-            domain: light
+        entity:
+          domain: light
     fan_entity:
       name: Fan entity
       selector:
-        target:
-          entity:
-            domain: fan
+        entity:
+          domain: fan
     fan_low_pct:
       name: Fan Low percentage
       default: 33
@@ -52,9 +50,8 @@ blueprint:
       name: Blind/Cover entity (Optional)
       default:
       selector:
-        target:
-          entity:
-            domain: cover
+        entity:
+          domain: cover
 
 mode: parallel
 max: 10
@@ -64,9 +61,7 @@ trigger:
     topic: !input z2m_action_topic
 
 variables:
-  blind_target: !input blind_entity
-  # Check if a blind was actually selected
-  blind_exists: "{{ blind_target is not none and blind_target != {} and blind_target != [] }}"
+  blind: !input blind_entity
   low: !input fan_low_pct
   med: !input fan_med_pct
   high: !input fan_high_pct
@@ -77,23 +72,18 @@ action:
       - conditions: "{{ trigger.payload == 'single_top' }}"
         sequence:
           - action: light.toggle
-            target: !input light_entity
+            target:
+              entity_id: !input light_entity
 
       # --- CENTER ROCKER (Fan Cycle) ---
       - conditions: "{{ trigger.payload == 'single_center' }}"
         sequence:
           - variables:
-              fan_input: !input fan_entity
-              # Extract entity_id even if it's wrapped in a target dictionary
-              fan_id: >
-                {% if fan_input.entity_id is defined %}
-                  {{ fan_input.entity_id }}
-                {% else %}
-                  {{ fan_input }}
-                {% endif %}
+              fan_id: !input fan_entity
               current: "{{ state_attr(fan_id, 'percentage') | int(0) }}"
           - action: fan.turn_on
-            target: !input fan_entity
+            target:
+              entity_id: "{{ fan_id }}"
             data:
               percentage: >
                 {% if current == 0 %} {{ low }}
@@ -105,34 +95,33 @@ action:
       # --- BOTTOM ROCKER (Blind Up) ---
       - conditions: 
           - "{{ trigger.payload == 'single_bottom' }}"
-          - "{{ blind_exists }}"
+          - "{{ blind is not none }}"
         sequence:
           - if:
               - condition: template
-                # Use device_id or entity_id from the target for the state check
-                value_template: >
-                  {% set b_id = blind_target.entity_id if blind_target.entity_id is defined else blind_target %}
-                  {{ is_state(b_id, 'opening') }}
+                value_template: "{{ is_state(blind, 'opening') }}"
             then:
               - action: cover.stop_cover
-                target: !input blind_entity
+                target:
+                  entity_id: "{{ blind }}"
             else:
               - action: cover.open_cover
-                target: !input blind_entity
+                target:
+                  entity_id: "{{ blind }}"
 
       # --- WIRELESS ROCKER (Blind Down) ---
       - conditions: 
           - "{{ trigger.payload == 'single_wireless' }}"
-          - "{{ blind_exists }}"
+          - "{{ blind is not none }}"
         sequence:
           - if:
               - condition: template
-                value_template: >
-                  {% set b_id = blind_target.entity_id if blind_target.entity_id is defined else blind_target %}
-                  {{ is_state(b_id, 'closing') }}
+                value_template: "{{ is_state(blind, 'closing') }}"
             then:
               - action: cover.stop_cover
-                target: !input blind_entity
+                target:
+                  entity_id: "{{ blind }}"
             else:
               - action: cover.close_cover
-                target: !input blind_entity
+                target:
+                  entity_id: "{{ blind }}"
