@@ -1,0 +1,95 @@
+blueprint:
+  name: H2 Quad Rocker Scene Controller (Z2M)
+  description: >
+    Control lights, fans, and blinds using the H2 Quad Rocker via Zigbee2MQTT.
+    Top: Light Toggle
+    Middle: Fan Cycle (3-speed)
+    Bottom: Blind Up/Stop
+    Wireless: Blind Down/Stop
+  domain: automation
+  input:
+    remote:
+      name: Rocker Action Entity
+      description: The sensor entity from Zigbee2MQTT that reports the 'action' state.
+      selector:
+        entity:
+          domain: sensor
+    light_target:
+      name: Light
+      selector:
+        target:
+          entity:
+            domain: light
+    fan_target:
+      name: Fan
+      selector:
+        target:
+          entity:
+            domain: fan
+    blind_target:
+      name: Blinds
+      selector:
+        target:
+          entity:
+            domain: cover
+
+mode: parallel
+max: 10
+
+trigger:
+  - platform: state
+    entity_id: !input remote
+    attribute: action
+
+action:
+  - variables:
+      action: "{{ trigger.to_state.state }}"
+  - choose:
+      # TOP ROCKER: Light Toggle
+      - conditions: "{{ action == 'single_top' }}"
+        sequence:
+          - action: light.toggle
+            target: !input light_target
+
+      # CENTER ROCKER: Fan Cycle
+      - conditions: "{{ action == 'single_center' }}"
+        sequence:
+          - action: fan.turn_on
+            target: !input fan_target
+            data:
+              percentage: >
+                {% set fan_id = (input_target.entity_id if input_target is defined else 'fan.bedroom_3_fan') %}
+                {% set current = state_attr(fan_id, 'percentage') | int(0) %}
+                {% if current == 0 %} 33
+                {% elif current == 33 %} 66
+                {% elif current == 66 %} 100
+                {% else %} 0
+                {% endif %}
+
+      # BOTTOM ROCKER: Blind Up / Stop
+      - conditions: "{{ action == 'single_bottom' }}"
+        sequence:
+          - if:
+              - condition: state
+                entity_id: !input blind_target
+                state: "opening"
+            then:
+              - action: cover.stop_cover
+                target: !input blind_target
+            else:
+              - action: cover.open_cover
+                target: !input blind_target
+
+      # WIRELESS ROCKER: Blind Down / Stop
+      - conditions: "{{ action == 'single_wireless' }}"
+        sequence:
+          - if:
+              - condition: state
+                entity_id: !input blind_target
+                state: "closing"
+            then:
+              - action: cover.stop_cover
+                target: !input blind_target
+            else:
+              - action: cover.close_cover
+                target: !input blind_target
