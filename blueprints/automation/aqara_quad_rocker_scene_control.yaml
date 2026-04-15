@@ -3,9 +3,9 @@ blueprint:
   description: >
     Control lights, fans, and blinds using the H2 Quad Rocker via Zigbee2MQTT.
     Top: Light Toggle
-    Middle: Fan Cycle (Off/33/66/100)
-    Bottom: Blind Up/Stop
-    Wireless: Blind Down/Stop
+    Middle: Fan Cycle
+    Bottom: Blind Up/Stop (Optional)
+    Wireless: Blind Down/Stop (Optional)
   domain: automation
   input:
     z2m_action_topic:
@@ -16,18 +16,50 @@ blueprint:
     light_entity:
       name: Light entity
       selector:
-        entity:
-          domain: light
+        target:
+          entity:
+            domain: light
     fan_entity:
       name: Fan entity
       selector:
-        entity:
-          domain: fan
-    blind_entity:
-      name: Blind/Cover entity
+        target:
+          entity:
+            domain: fan
+    fan_low_pct:
+      name: Fan Low percentage
+      default: 33
       selector:
-        entity:
-          domain: cover
+        number:
+          min: 1
+          max: 100
+          step: 1
+          mode: slider
+    fan_med_pct:
+      name: Fan Medium percentage
+      default: 66
+      selector:
+        number:
+          min: 1
+          max: 100
+          step: 1
+          mode: slider
+    fan_high_pct:
+      name: Fan High percentage
+      default: 100
+      selector:
+        number:
+          min: 1
+          max: 100
+          step: 1
+          mode: slider
+    blind_entity:
+      name: Blind/Cover entity (Optional)
+      default: []
+      description: Leave blank if you don't have blinds yet.
+      selector:
+        target:
+          entity:
+            domain: cover
 
 mode: parallel
 max: 10
@@ -37,9 +69,10 @@ trigger:
     topic: !input z2m_action_topic
 
 variables:
-  light: !input light_entity
-  fan: !input fan_entity
-  blind: !input blind_entity
+  blind_target: !input blind_entity
+  low: !input fan_low_pct
+  med: !input fan_med_pct
+  high: !input fan_high_pct
 
 action:
   - choose:
@@ -47,66 +80,52 @@ action:
       - conditions: "{{ trigger.payload == 'single_top' }}"
         sequence:
           - action: light.toggle
-            target:
-              entity_id: "{{ light }}"
-      - conditions: "{{ trigger.payload == 'double_top' }}"
-        sequence: [] # Placeholder for double press
-      - conditions: "{{ trigger.payload == 'long_top' }}"
-        sequence: [] # Placeholder for long press
+            target: !input light_entity
 
-      # --- CENTER ROCKER (Fan) ---
+      # --- CENTER ROCKER (Fan Cycle) ---
       - conditions: "{{ trigger.payload == 'single_center' }}"
         sequence:
+          - variables:
+              fan_id: !input fan_entity
+              # Extract the first entity ID from the target selector
+              actual_fan: "{{ (fan_id.entity_id[0] if fan_id.entity_id is list else fan_id.entity_id) if fan_id.entity_id is defined else fan_id }}"
+              current: "{{ state_attr(actual_fan, 'percentage') | int(0) }}"
           - action: fan.turn_on
-            target:
-              entity_id: "{{ fan }}"
+            target: !input fan_entity
             data:
               percentage: >
-                {% set current = state_attr(fan, 'percentage') | int(0) %}
-                {% if current == 0 %} 33
-                {% elif current == 33 %} 66
-                {% elif current == 66 %} 100
+                {% if current == 0 %} {{ low }}
+                {% elif current <= low %} {{ med }}
+                {% elif current <= med %} {{ high }}
                 {% else %} 0
                 {% endif %}
-      - conditions: "{{ trigger.payload == 'double_center' }}"
-        sequence: []
-      - conditions: "{{ trigger.payload == 'long_center' }}"
-        sequence: []
 
       # --- BOTTOM ROCKER (Blind Up) ---
-      - conditions: "{{ trigger.payload == 'single_bottom' }}"
+      - conditions: 
+          - "{{ trigger.payload == 'single_bottom' }}"
+          - "{{ blind_target != [] }}"
         sequence:
           - if:
               - condition: template
-                value_template: "{{ is_state(blind, 'opening') }}"
+                value_template: "{{ is_state(blind_target.entity_id, 'opening') }}"
             then:
               - action: cover.stop_cover
-                target:
-                  entity_id: "{{ blind }}"
+                target: !input blind_entity
             else:
               - action: cover.open_cover
-                target:
-                  entity_id: "{{ blind }}"
-      - conditions: "{{ trigger.payload == 'double_bottom' }}"
-        sequence: []
-      - conditions: "{{ trigger.payload == 'long_bottom' }}"
-        sequence: []
+                target: !input blind_entity
 
       # --- WIRELESS ROCKER (Blind Down) ---
-      - conditions: "{{ trigger.payload == 'single_wireless' }}"
+      - conditions: 
+          - "{{ trigger.payload == 'single_wireless' }}"
+          - "{{ blind_target != [] }}"
         sequence:
           - if:
               - condition: template
-                value_template: "{{ is_state(blind, 'closing') }}"
+                value_template: "{{ is_state(blind_target.entity_id, 'closing') }}"
             then:
               - action: cover.stop_cover
-                target:
-                  entity_id: "{{ blind }}"
+                target: !input blind_entity
             else:
               - action: cover.close_cover
-                target:
-                  entity_id: "{{ blind }}"
-      - conditions: "{{ trigger.payload == 'double_wireless' }}"
-        sequence: []
-      - conditions: "{{ trigger.payload == 'long_wireless' }}"
-        sequence: []
+                target: !input blind_entity
