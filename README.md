@@ -13,3 +13,16 @@ Control a fan and light using a 4-button Zigbee remote via Zigbee2MQTT.
 - Buttons 2/3/4: Single press sets fan low/med/high, double press turns fan off
 - Customizable fan speed percentages
 - Designed for Tuya  or similar 4-button remotes via Zigbee2MQTT
+
+## Zigbee2MQTT - H2 Quad Rocker Scene Controller
+
+Multi-functional control for the H2 Quad Rocker including light toggling, fan speed cycling, and blind control with start/stop logic.
+
+[![Import Blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https://raw.githubusercontent.com/pricklyguy/HA_Blueprints/refs/heads/main/blueprints/automation/h2_quad_rocker_scene_control.yaml)
+
+### Features
+- **Top Rocker:** Single press toggles light.
+- **Middle Rocker:** Cycles fan speeds (Off -> 33% -> 66% -> 100%).
+- **Bottom Rocker:** Single press opens blinds; second press while moving stops them.
+- **Wireless Rocker:** Single press closes blinds; second press while moving stops them.
+- Uses modern Home Assistant `action` syntax.
