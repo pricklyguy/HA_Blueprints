@@ -7,21 +7,26 @@ blueprint:
     Bottom: Blind Up/Stop (Optional)
     Wireless: Blind Down/Stop (Optional)
   domain: automation
+
   input:
     z2m_action_topic:
       name: Zigbee2MQTT action topic
+      description: e.g., zigbee2mqtt/Bedroom 3 Scene Control/action
       selector:
         text: {}
+
     light_entity:
       name: Light entity
       selector:
         entity:
           domain: light
+
     fan_entity:
       name: Fan entity
       selector:
         entity:
           domain: fan
+
     fan_low_pct:
       name: Fan Low percentage
       default: 33
@@ -30,6 +35,8 @@ blueprint:
           min: 1
           max: 100
           step: 1
+          mode: slider
+
     fan_med_pct:
       name: Fan Medium percentage
       default: 66
@@ -38,6 +45,8 @@ blueprint:
           min: 1
           max: 100
           step: 1
+          mode: slider
+
     fan_high_pct:
       name: Fan High percentage
       default: 100
@@ -46,9 +55,12 @@ blueprint:
           min: 1
           max: 100
           step: 1
+          mode: slider
+
     blind_entity:
       name: Blind/Cover entity (Optional)
-      default:
+      default: ""
+      description: Leave blank if you don't have blinds yet.
       selector:
         entity:
           domain: cover
@@ -61,7 +73,8 @@ trigger:
     topic: !input z2m_action_topic
 
 variables:
-  blind: !input blind_entity
+  blind_entity: !input blind_entity
+  fan_entity: !input fan_entity
   low: !input fan_low_pct
   med: !input fan_med_pct
   high: !input fan_high_pct
@@ -79,49 +92,57 @@ action:
       - conditions: "{{ trigger.payload == 'single_center' }}"
         sequence:
           - variables:
-              fan_id: !input fan_entity
-              current: "{{ state_attr(fan_id, 'percentage') | int(0) }}"
-          - action: fan.turn_on
-            target:
-              entity_id: "{{ fan_id }}"
-            data:
-              percentage: >
-                {% if current == 0 %} {{ low }}
-                {% elif current <= low %} {{ med }}
-                {% elif current <= med %} {{ high }}
-                {% else %} 0
+              current: "{{ state_attr(fan_entity, 'percentage') | int(0) }}"
+              next_pct: >-
+                {% if current == 0 %}{{ low }}
+                {% elif current <= low %}{{ med }}
+                {% elif current <= med %}{{ high }}
+                {% else %}0
                 {% endif %}
+          - if:
+              - condition: template
+                value_template: "{{ next_pct | int(0) == 0 }}"
+            then:
+              - action: fan.turn_off
+                target:
+                  entity_id: !input fan_entity
+            else:
+              - action: fan.turn_on
+                target:
+                  entity_id: !input fan_entity
+                data:
+                  percentage: "{{ next_pct | int }}"
 
       # --- BOTTOM ROCKER (Blind Up) ---
-      - conditions: 
+      - conditions:
           - "{{ trigger.payload == 'single_bottom' }}"
-          - "{{ blind is not none }}"
+          - "{{ blind_entity != '' }}"
         sequence:
           - if:
               - condition: template
-                value_template: "{{ is_state(blind, 'opening') }}"
+                value_template: "{{ is_state(blind_entity, 'opening') }}"
             then:
               - action: cover.stop_cover
                 target:
-                  entity_id: "{{ blind }}"
+                  entity_id: !input blind_entity
             else:
               - action: cover.open_cover
                 target:
-                  entity_id: "{{ blind }}"
+                  entity_id: !input blind_entity
 
       # --- WIRELESS ROCKER (Blind Down) ---
-      - conditions: 
+      - conditions:
           - "{{ trigger.payload == 'single_wireless' }}"
-          - "{{ blind is not none }}"
+          - "{{ blind_entity != '' }}"
         sequence:
           - if:
               - condition: template
-                value_template: "{{ is_state(blind, 'closing') }}"
+                value_template: "{{ is_state(blind_entity, 'closing') }}"
             then:
               - action: cover.stop_cover
                 target:
-                  entity_id: "{{ blind }}"
+                  entity_id: !input blind_entity
             else:
               - action: cover.close_cover
                 target:
-                  entity_id: "{{ blind }}"
+                  entity_id: !input blind_entity
