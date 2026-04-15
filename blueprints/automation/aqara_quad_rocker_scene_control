@@ -1,65 +1,64 @@
 blueprint:
-  name: H2 Quad Rocker Scene Controller (Z2M)
+  name: Zigbee2MQTT - H2 Quad Rocker Scene Controller
   description: >
     Control lights, fans, and blinds using the H2 Quad Rocker via Zigbee2MQTT.
     Top: Light Toggle
-    Middle: Fan Cycle (3-speed)
+    Middle: Fan Cycle (Off/33/66/100)
     Bottom: Blind Up/Stop
     Wireless: Blind Down/Stop
   domain: automation
   input:
-    remote:
-      name: Rocker Action Entity
-      description: The sensor entity from Zigbee2MQTT that reports the 'action' state.
+    z2m_action_topic:
+      name: Zigbee2MQTT action topic
+      description: e.g., zigbee2mqtt/Bedroom 3 Scene Control/action
+      selector:
+        text: {}
+    light_entity:
+      name: Light entity
       selector:
         entity:
-          domain: sensor
-    light_target:
-      name: Light
+          domain: light
+    fan_entity:
+      name: Fan entity
       selector:
-        target:
-          entity:
-            domain: light
-    fan_target:
-      name: Fan
+        entity:
+          domain: fan
+    blind_entity:
+      name: Blind/Cover entity
       selector:
-        target:
-          entity:
-            domain: fan
-    blind_target:
-      name: Blinds
-      selector:
-        target:
-          entity:
-            domain: cover
+        entity:
+          domain: cover
 
 mode: parallel
 max: 10
 
 trigger:
-  - platform: state
-    entity_id: !input remote
-    attribute: action
+  - platform: mqtt
+    topic: !input z2m_action_topic
+
+variables:
+  light: !input light_entity
+  fan: !input fan_entity
+  blind: !input blind_entity
 
 action:
-  - variables:
-      action: "{{ trigger.to_state.state }}"
   - choose:
       # TOP ROCKER: Light Toggle
-      - conditions: "{{ action == 'single_top' }}"
+      - conditions: "{{ trigger.payload == 'single_top' }}"
         sequence:
           - action: light.toggle
-            target: !input light_target
+            target:
+              entity_id: "{{ light }}"
 
       # CENTER ROCKER: Fan Cycle
-      - conditions: "{{ action == 'single_center' }}"
+      - conditions: "{{ trigger.payload == 'single_center' }}"
         sequence:
           - action: fan.turn_on
-            target: !input fan_target
+            target:
+              entity_id: "{{ fan }}"
             data:
               percentage: >
-                {% set fan_id = (input_target.entity_id if input_target is defined else 'fan.bedroom_3_fan') %}
-                {% set current = state_attr(fan_id, 'percentage') | int(0) %}
+                {% set current = state_attr(fan, 'percentage') | int(0) %}
                 {% if current == 0 %} 33
                 {% elif current == 33 %} 66
                 {% elif current == 66 %} 100
@@ -67,29 +66,31 @@ action:
                 {% endif %}
 
       # BOTTOM ROCKER: Blind Up / Stop
-      - conditions: "{{ action == 'single_bottom' }}"
+      - conditions: "{{ trigger.payload == 'single_bottom' }}"
         sequence:
           - if:
-              - condition: state
-                entity_id: !input blind_target
-                state: "opening"
+              - condition: template
+                value_template: "{{ is_state(blind, 'opening') }}"
             then:
               - action: cover.stop_cover
-                target: !input blind_target
+                target:
+                  entity_id: "{{ blind }}"
             else:
               - action: cover.open_cover
-                target: !input blind_target
+                target:
+                  entity_id: "{{ blind }}"
 
       # WIRELESS ROCKER: Blind Down / Stop
-      - conditions: "{{ action == 'single_wireless' }}"
+      - conditions: "{{ trigger.payload == 'single_wireless' }}"
         sequence:
           - if:
-              - condition: state
-                entity_id: !input blind_target
-                state: "closing"
+              - condition: template
+                value_template: "{{ is_state(blind, 'closing') }}"
             then:
               - action: cover.stop_cover
-                target: !input blind_target
+                target:
+                  entity_id: "{{ blind }}"
             else:
               - action: cover.close_cover
-                target: !input blind_target
+                target:
+                  entity_id: "{{ blind }}"
