@@ -21,8 +21,8 @@ Multi-functional control for the H2 Quad Rocker including light toggling, fan sp
 [![Import Blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https://raw.githubusercontent.com/pricklyguy/HA_Blueprints/refs/heads/main/blueprints/automation/h2_quad_rocker_scene_control.yaml)
 
 ### Features
-- **Top Rocker:** Single press toggles light.
-- **Middle Rocker:** Cycles fan speeds (Off -> 33% -> 66% -> 100%).
-- **Bottom Rocker:** Single press opens blinds; second press while moving stops them.
-- **Wireless Rocker:** Single press closes blinds; second press while moving stops them.
-- Uses modern Home Assistant `action` syntax.
+- **Button 1(Top Rocker):** Single press toggles light.
+- **Button 2(Middle Rocker):** Cycles fan speeds (Off -> 33% -> 66% -> 100%).
+- **Button 3(Bottom Rocker):** Single press opens blinds; second press while moving stops them.
+- **Button 4(Wireless Rocker):** Single press closes blinds; second press while moving stops them.
+
