@@ -18,7 +18,7 @@ Control a fan and light using a 4-button Zigbee remote via Zigbee2MQTT.
 
 Multi-functional control for the H2 Quad Rocker including light toggling, fan speed cycling, and blind control with start/stop logic.
 
-[![Import Blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https://raw.githubusercontent.com/pricklyguy/HA_Blueprints/refs/heads/main/blueprints/automation/h2_quad_rocker_scene_control.yaml)
+[![Import Blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https://raw.githubusercontent.com/pricklyguy/HA_Blueprints/refs/heads/main/blueprints/automation/aqara_quad_rocker_scene_control.yaml)
 
 ### Features
 - **Button 1(Top Rocker):** Single press toggles light.
