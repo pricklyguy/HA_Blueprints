@@ -6,12 +6,17 @@ blueprint:
     Middle: Fan Cycle
     Bottom: Blind Up/Stop (Optional)
     Wireless: Blind Down/Stop (Optional)
+
+    Blind logic:
+    - First press opens or closes
+    - Second press within the stop window while mid-travel sends STOP
+    - Pressing again later resumes movement instead of endlessly alternating
   domain: automation
 
   input:
     z2m_action_topic:
       name: Zigbee2MQTT action topic
-      description: e.g., zigbee2mqtt/Bedroom 3 Scene Control/action
+      description: e.g. zigbee2mqtt/Bedroom2 Scene Control/action
       selector:
         text: {}
 
@@ -60,10 +65,23 @@ blueprint:
     blind_entity:
       name: Blind/Cover entity (Optional)
       default: ""
-      description: Leave blank if you don't have blinds yet.
+      description: Leave blank if you don't have blinds assigned.
       selector:
         entity:
           domain: cover
+
+    blind_stop_window_secs:
+      name: Blind stop window (seconds)
+      description: >
+        If the blind is between 0 and 100 and was updated within this many
+        seconds, pressing the same blind button again sends STOP.
+      default: 2
+      selector:
+        number:
+          min: 1
+          max: 10
+          step: 1
+          mode: slider
 
 mode: parallel
 max: 10
@@ -78,10 +96,11 @@ variables:
   low: !input fan_low_pct
   med: !input fan_med_pct
   high: !input fan_high_pct
+  blind_stop_window_secs: !input blind_stop_window_secs
 
 action:
   - choose:
-      # --- TOP ROCKER (Light) ---
+      # --- TOP ROCKER (Light Toggle) ---
       - conditions: "{{ trigger.payload == 'single_top' }}"
         sequence:
           - action: light.toggle
@@ -92,57 +111,88 @@ action:
       - conditions: "{{ trigger.payload == 'single_center' }}"
         sequence:
           - variables:
-              current: "{{ state_attr(fan_entity, 'percentage') | int(0) }}"
+              current_pct: "{{ state_attr(fan_entity, 'percentage') | int(0) }}"
               next_pct: >-
-                {% if current == 0 %}{{ low }}
-                {% elif current <= low %}{{ med }}
-                {% elif current <= med %}{{ high }}
-                {% else %}0
+                {% if is_state(fan_entity, 'off') or current_pct == 0 %}
+                  {{ low }}
+                {% elif current_pct <= low %}
+                  {{ med }}
+                {% elif current_pct <= med %}
+                  {{ high }}
+                {% else %}
+                  0
                 {% endif %}
-          - if:
-              - condition: template
-                value_template: "{{ next_pct | int(0) == 0 }}"
-            then:
-              - action: fan.turn_off
-                target:
-                  entity_id: !input fan_entity
-            else:
+          - choose:
+              - conditions:
+                  - condition: template
+                    value_template: "{{ next_pct | int(0) == 0 }}"
+                sequence:
+                  - action: fan.turn_off
+                    target:
+                      entity_id: !input fan_entity
+            default:
               - action: fan.turn_on
                 target:
                   entity_id: !input fan_entity
                 data:
                   percentage: "{{ next_pct | int }}"
 
-      # --- BOTTOM ROCKER (Blind Up) ---
+      # --- BOTTOM ROCKER (Blind Up / Stop) ---
       - conditions:
           - "{{ trigger.payload == 'single_bottom' }}"
           - "{{ blind_entity != '' }}"
         sequence:
-          - if:
-              - condition: template
-                value_template: "{{ is_state(blind_entity, 'opening') }}"
-            then:
-              - action: cover.stop_cover
-                target:
-                  entity_id: !input blind_entity
-            else:
-              - action: cover.open_cover
-                target:
-                  entity_id: !input blind_entity
+          - variables:
+              blind_pos: "{{ state_attr(blind_entity, 'current_position') | int(-1) }}"
+              blind_age_secs: >-
+                {{ (as_timestamp(now()) - as_timestamp(states[blind_entity].last_updated, 0)) | float(999) }}
+              blind_recent: "{{ blind_age_secs <= (blind_stop_window_secs | int(2)) }}"
+              blind_mid_travel: "{{ blind_pos > 0 and blind_pos < 100 }}"
+          - choose:
+              # If recently moving and mid-travel, stop
+              - conditions:
+                  - condition: template
+                    value_template: "{{ blind_mid_travel and blind_recent }}"
+                sequence:
+                  - action: cover.stop_cover
+                    target:
+                      entity_id: !input blind_entity
 
-      # --- WIRELESS ROCKER (Blind Down) ---
+              # Otherwise open unless already fully open
+              - conditions:
+                  - condition: template
+                    value_template: "{{ blind_pos == -1 or blind_pos < 100 }}"
+                sequence:
+                  - action: cover.open_cover
+                    target:
+                      entity_id: !input blind_entity
+
+      # --- WIRELESS ROCKER (Blind Down / Stop) ---
       - conditions:
           - "{{ trigger.payload == 'single_wireless' }}"
           - "{{ blind_entity != '' }}"
         sequence:
-          - if:
-              - condition: template
-                value_template: "{{ is_state(blind_entity, 'closing') }}"
-            then:
-              - action: cover.stop_cover
-                target:
-                  entity_id: !input blind_entity
-            else:
-              - action: cover.close_cover
-                target:
-                  entity_id: !input blind_entity
+          - variables:
+              blind_pos: "{{ state_attr(blind_entity, 'current_position') | int(-1) }}"
+              blind_age_secs: >-
+                {{ (as_timestamp(now()) - as_timestamp(states[blind_entity].last_updated, 0)) | float(999) }}
+              blind_recent: "{{ blind_age_secs <= (blind_stop_window_secs | int(2)) }}"
+              blind_mid_travel: "{{ blind_pos > 0 and blind_pos < 100 }}"
+          - choose:
+              # If recently moving and mid-travel, stop
+              - conditions:
+                  - condition: template
+                    value_template: "{{ blind_mid_travel and blind_recent }}"
+                sequence:
+                  - action: cover.stop_cover
+                    target:
+                      entity_id: !input blind_entity
+
+              # Otherwise close unless already fully closed
+              - conditions:
+                  - condition: template
+                    value_template: "{{ blind_pos == -1 or blind_pos > 0 }}"
+                sequence:
+                  - action: cover.close_cover
+                    target:
+                      entity_id: !input blind_entity
