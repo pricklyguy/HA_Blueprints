@@ -1,0 +1,138 @@
+blueprint:
+  name: Zigbee2MQTT - H2 Quad Rocker Scene Controller (Fan Toggle)
+  description: >
+    Control lights, fan, and blinds using the H2 Quad Rocker via Zigbee2MQTT.
+    Top: Light Toggle
+    Middle: Fan Toggle On/Off
+    Bottom: Blind Up/Stop (Optional)
+    Wireless: Blind Down/Stop (Optional)
+
+    Blind logic:
+    - First press opens or closes
+    - Second press within the stop window while mid-travel sends STOP
+    - Pressing again later resumes movement instead of endlessly alternating
+  domain: automation
+
+  input:
+    z2m_action_topic:
+      name: Zigbee2MQTT action topic
+      description: e.g. zigbee2mqtt/Bedroom2 Scene Control/action
+      selector:
+        text: {}
+
+    light_entity:
+      name: Light entity
+      selector:
+        entity:
+          domain: light
+
+    fan_entity:
+      name: Fan entity
+      selector:
+        entity:
+          domain: fan
+
+    blind_entity:
+      name: Blind/Cover entity (Optional)
+      default: ""
+      description: Leave blank if you don't have blinds assigned.
+      selector:
+        entity:
+          domain: cover
+
+    blind_stop_window_secs:
+      name: Blind stop window (seconds)
+      description: >
+        If the blind is between 0 and 100 and was updated within this many
+        seconds, pressing the same blind button again sends STOP.
+      default: 2
+      selector:
+        number:
+          min: 1
+          max: 10
+          step: 1
+          mode: slider
+
+mode: parallel
+max: 10
+
+trigger:
+  - platform: mqtt
+    topic: !input z2m_action_topic
+
+variables:
+  blind_entity: !input blind_entity
+  fan_entity: !input fan_entity
+  blind_stop_window_secs: !input blind_stop_window_secs
+
+action:
+  - choose:
+      # --- TOP ROCKER (Light Toggle) ---
+      - conditions: "{{ trigger.payload == 'single_top' }}"
+        sequence:
+          - action: light.toggle
+            target:
+              entity_id: !input light_entity
+
+      # --- CENTER ROCKER (Fan Toggle) ---
+      - conditions: "{{ trigger.payload == 'single_center' }}"
+        sequence:
+          - action: fan.toggle
+            target:
+              entity_id: !input fan_entity
+
+      # --- BOTTOM ROCKER (Blind Up / Stop) ---
+      - conditions:
+          - "{{ trigger.payload == 'single_bottom' }}"
+          - "{{ blind_entity != '' }}"
+        sequence:
+          - variables:
+              blind_pos: "{{ state_attr(blind_entity, 'current_position') | int(-1) }}"
+              blind_age_secs: >-
+                {{ (as_timestamp(now()) - as_timestamp(states[blind_entity].last_updated, 0)) | float(999) }}
+              blind_recent: "{{ blind_age_secs <= (blind_stop_window_secs | int(2)) }}"
+              blind_mid_travel: "{{ blind_pos > 0 and blind_pos < 100 }}"
+          - choose:
+              - conditions:
+                  - condition: template
+                    value_template: "{{ blind_mid_travel and blind_recent }}"
+                sequence:
+                  - action: cover.stop_cover
+                    target:
+                      entity_id: !input blind_entity
+
+              - conditions:
+                  - condition: template
+                    value_template: "{{ blind_pos == -1 or blind_pos < 100 }}"
+                sequence:
+                  - action: cover.open_cover
+                    target:
+                      entity_id: !input blind_entity
+
+      # --- WIRELESS ROCKER (Blind Down / Stop) ---
+      - conditions:
+          - "{{ trigger.payload == 'single_wireless' }}"
+          - "{{ blind_entity != '' }}"
+        sequence:
+          - variables:
+              blind_pos: "{{ state_attr(blind_entity, 'current_position') | int(-1) }}"
+              blind_age_secs: >-
+                {{ (as_timestamp(now()) - as_timestamp(states[blind_entity].last_updated, 0)) | float(999) }}
+              blind_recent: "{{ blind_age_secs <= (blind_stop_window_secs | int(2)) }}"
+              blind_mid_travel: "{{ blind_pos > 0 and blind_pos < 100 }}"
+          - choose:
+              - conditions:
+                  - condition: template
+                    value_template: "{{ blind_mid_travel and blind_recent }}"
+                sequence:
+                  - action: cover.stop_cover
+                    target:
+                      entity_id: !input blind_entity
+
+              - conditions:
+                  - condition: template
+                    value_template: "{{ blind_pos == -1 or blind_pos > 0 }}"
+                sequence:
+                  - action: cover.close_cover
+                    target:
+                      entity_id: !input blind_entity
