@@ -1,0 +1,163 @@
+blueprint:
+  name: Zigbee2MQTT - 3 Button Dual Blind Controller
+  description: >
+    Button 1 (left): controls left blind
+    Button 2 (middle): controls both blinds together
+    Button 3 (right): controls right blind
+
+    Single press toggles open/close based on position.
+    Pressing again quickly while blind is mid-travel sends STOP.
+  domain: automation
+
+  input:
+    z2m_action_topic:
+      name: Zigbee2MQTT action topic
+      description: e.g. zigbee2mqtt/Door Blind Controller/action
+      default: "zigbee2mqtt/Door Blind Controller/action"
+      selector:
+        text: {}
+
+    blind_left:
+      name: Left blind entity
+      default: cover.door_left_11
+      selector:
+        entity:
+          domain: cover
+
+    blind_right:
+      name: Right blind entity
+      default: cover.door_right_10
+      selector:
+        entity:
+          domain: cover
+
+    blind_stop_window_secs:
+      name: Stop window (seconds)
+      description: >
+        How long after a blind starts moving that a second press sends STOP.
+      default: 3
+      selector:
+        number:
+          min: 1
+          max: 10
+          step: 1
+          mode: slider
+
+mode: parallel
+max: 10
+
+trigger:
+  - platform: mqtt
+    topic: !input z2m_action_topic
+
+variables:
+  blind_left: !input blind_left
+  blind_right: !input blind_right
+  stop_window: !input blind_stop_window_secs
+
+action:
+  - choose:
+
+      # --- BUTTON 1: LEFT BLIND ---
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.payload == '1_single' }}"
+        sequence:
+          - variables:
+              pos: "{{ state_attr(blind_left, 'current_position') | int(-1) }}"
+              age: >-
+                {{ (as_timestamp(now()) - as_timestamp(states[blind_left].last_updated, 0)) | float(999) }}
+              mid_and_recent: "{{ pos > 0 and pos < 100 and age <= (stop_window | int(3)) }}"
+          - choose:
+              - conditions:
+                  - condition: template
+                    value_template: "{{ mid_and_recent }}"
+                sequence:
+                  - action: cover.stop_cover
+                    target:
+                      entity_id: !input blind_left
+              - conditions:
+                  - condition: template
+                    value_template: "{{ pos > 50 }}"
+                sequence:
+                  - action: cover.close_cover
+                    target:
+                      entity_id: !input blind_left
+            default:
+              - action: cover.open_cover
+                target:
+                  entity_id: !input blind_left
+
+      # --- BUTTON 2: BOTH BLINDS ---
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.payload == '2_single' }}"
+        sequence:
+          - variables:
+              pos_l: "{{ state_attr(blind_left, 'current_position') | int(-1) }}"
+              pos_r: "{{ state_attr(blind_right, 'current_position') | int(-1) }}"
+              age_l: >-
+                {{ (as_timestamp(now()) - as_timestamp(states[blind_left].last_updated, 0)) | float(999) }}
+              age_r: >-
+                {{ (as_timestamp(now()) - as_timestamp(states[blind_right].last_updated, 0)) | float(999) }}
+              either_mid_recent: >-
+                {{
+                  (pos_l > 0 and pos_l < 100 and age_l <= (stop_window | int(3))) or
+                  (pos_r > 0 and pos_r < 100 and age_r <= (stop_window | int(3)))
+                }}
+              avg_pos: "{{ ((pos_l + pos_r) / 2) | int(0) }}"
+          - choose:
+              - conditions:
+                  - condition: template
+                    value_template: "{{ either_mid_recent }}"
+                sequence:
+                  - action: cover.stop_cover
+                    target:
+                      entity_id:
+                        - !input blind_left
+                        - !input blind_right
+              - conditions:
+                  - condition: template
+                    value_template: "{{ avg_pos > 50 }}"
+                sequence:
+                  - action: cover.close_cover
+                    target:
+                      entity_id:
+                        - !input blind_left
+                        - !input blind_right
+            default:
+              - action: cover.open_cover
+                target:
+                  entity_id:
+                    - !input blind_left
+                    - !input blind_right
+
+      # --- BUTTON 3: RIGHT BLIND ---
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.payload == '3_single' }}"
+        sequence:
+          - variables:
+              pos: "{{ state_attr(blind_right, 'current_position') | int(-1) }}"
+              age: >-
+                {{ (as_timestamp(now()) - as_timestamp(states[blind_right].last_updated, 0)) | float(999) }}
+              mid_and_recent: "{{ pos > 0 and pos < 100 and age <= (stop_window | int(3)) }}"
+          - choose:
+              - conditions:
+                  - condition: template
+                    value_template: "{{ mid_and_recent }}"
+                sequence:
+                  - action: cover.stop_cover
+                    target:
+                      entity_id: !input blind_right
+              - conditions:
+                  - condition: template
+                    value_template: "{{ pos > 50 }}"
+                sequence:
+                  - action: cover.close_cover
+                    target:
+                      entity_id: !input blind_right
+            default:
+              - action: cover.open_cover
+                target:
+                  entity_id: !input blind_right
