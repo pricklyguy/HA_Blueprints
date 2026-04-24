@@ -149,7 +149,7 @@ action:
             value_template: "{{ trigger.payload == '1_double' }}"
         sequence:
           - variables:
-              current_bri: "{{ state_attr(light, 'brightness') | int(0) | multiply(100) | divide(255) | int(0) }}"
+              current_bri: "{{ (state_attr(light, 'brightness') | int(0) * 100 / 255) | int(0) }}"
               next_bri: >-
                 {% if is_state(light, 'off') or current_bri == 0 %}
                   {{ light_dim }}
