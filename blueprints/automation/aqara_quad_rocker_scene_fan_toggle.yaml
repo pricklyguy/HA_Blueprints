@@ -5,7 +5,7 @@ blueprint:
     Top: Light Toggle
     Middle: Fan Toggle On/Off
     Bottom: Blind Up/Stop (Optional)
-    Wireless: Blind Down/Stop (Optional)
+    Wireless: Blind Down/Stop  (Optional)
 
     Blind logic:
     - First press opens or closes
