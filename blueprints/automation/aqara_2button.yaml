@@ -1,5 +1,5 @@
 blueprint:
-  name: Zigbee2MQTT - H2 Quad Rocker Scene Controller (Fan Toggle)
+  name: Zigbee2MQTT - H2 Dimmer Scene Controller (Bottom 2 Only for Blinds)
   description: >
     Control blinds using the H2 Rocker via Zigbee2MQTT.
   
