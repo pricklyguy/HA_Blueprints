@@ -1,0 +1,109 @@
+blueprint:
+  name: Zigbee2MQTT - Aqara H2 Dimmer Blinds Controller (Dual Button)
+  description: >
+    Control blinds using the middle and bottom segments of the Aqara H2 Dimmer.
+    Top button handles physical light relay.
+    Middle Button (single_bright) = Open / Stop
+    Bottom Button (single_dim) = Close / Stop
+
+    Blind logic:
+    - Pressing Middle opens the blinds. If moving and pressed again within the window, it STOPS.
+    - Pressing Bottom closes the blinds. If moving and pressed again within the window, it STOPS.
+  domain: automation
+
+  input:
+    z2m_action_topic:
+      name: Zigbee2MQTT action topic
+      description: e.g. zigbee2mqtt/AZ_Room Scene Controller/action
+      selector:
+        text: {}
+
+    blind_entity:
+      name: Blind/Cover entity
+      selector:
+        entity:
+          domain: cover
+
+    blind_stop_window_secs:
+      name: Blind stop window (seconds)
+      description: >
+        If the blind is mid-travel and was updated within this many
+        seconds, pressing either blind button again sends a STOP command.
+      default: 2
+      selector:
+        number:
+          min: 1
+          max: 10
+          step: 1
+          mode: slider
+
+mode: parallel
+max: 10
+
+trigger:
+  - platform: mqtt
+    topic: !input z2m_action_topic
+
+variables:
+  blind_entity: !input blind_entity
+  blind_stop_window_secs: !input blind_stop_window_secs
+
+action:
+  - choose:
+      # --- MIDDLE BUTTON (Open / Stop) ---
+      - conditions:
+          - "{{ trigger.payload == 'single_bright' }}"
+        sequence:
+          - variables:
+              blind_pos: "{{ state_attr(blind_entity, 'current_position') | int(-1) }}"
+              blind_state: "{{ states(blind_entity) }}"
+              blind_age_secs: >-
+                {{ (as_timestamp(now()) - as_timestamp(states[blind_entity].last_updated, 0)) | float(999) }}
+              blind_recent: "{{ blind_age_secs <= (blind_stop_window_secs | int(2)) }}"
+              blind_moving: "{{ blind_state in ['opening', 'closing'] or (blind_pos > 0 and blind_pos < 100 and blind_recent) }}"
+          - choose:
+              # If moving and within the stop window, STOP
+              - conditions:
+                  - condition: template
+                    value_template: "{{ blind_moving and blind_recent }}"
+                sequence:
+                  - action: cover.stop_cover
+                    target:
+                      entity_id: !input blind_entity
+              # Otherwise, open the blind
+              - conditions:
+                  - condition: template
+                    value_value_template: "{{ blind_pos == -1 or blind_pos < 100 }}"
+                sequence:
+                  - action: cover.open_cover
+                    target:
+                      entity_id: !input blind_entity
+
+      # --- BOTTOM BUTTON (Close / Stop) ---
+      - conditions:
+          - "{{ trigger.payload == 'single_dim' }}"
+        sequence:
+          - variables:
+              blind_pos: "{{ state_attr(blind_entity, 'current_position') | int(-1) }}"
+              blind_state: "{{ states(blind_entity) }}"
+              blind_age_secs: >-
+                {{ (as_timestamp(now()) - as_timestamp(states[blind_entity].last_updated, 0)) | float(999) }}
+              blind_recent: "{{ blind_age_secs <= (blind_stop_window_secs | int(2)) }}"
+              blind_moving: "{{ blind_state in ['opening', 'closing'] or (blind_pos > 0 and blind_pos < 100 and blind_recent) }}"
+          - choose:
+              # If moving and within the stop window, STOP
+              - conditions:
+                  - condition: template
+                    value_template: "{{ blind_moving and blind_recent }}"
+                sequence:
+                  - action: cover.stop_cover
+                    target:
+                      entity_id: !input blind_entity
+              # Otherwise, close the blind
+              - conditions:
+                  - condition: template
+                    value_template: "{{ blind_pos == -1 or blind_pos > 0 }}"
+                sequence:
+                  - action: cover.close_cover
+                    target:
+                      entity_id: !input blind_entity
