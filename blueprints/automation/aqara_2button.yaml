@@ -13,7 +13,7 @@ blueprint:
   input:
     z2m_action_topic:
       name: Zigbee2MQTT action topic
-      description: e.g. zigbee2mqtt/Bedroom2 Scene Control/action
+      description: e.g. zigbee2mqtt/AZ_Room Scene Controller/action
       selector:
         text: {}
 
