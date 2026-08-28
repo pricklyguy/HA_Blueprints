@@ -1,0 +1,177 @@
+blueprint:
+  name: Zigbee2MQTT - 4 Button Remote for 4 Lights
+  description: >
+    Button 1: single = light 1 toggle, double = cycle light 1 brightness presets.
+    Button 2: single = light 2 toggle, double = cycle light 2 brightness presets.
+    Button 3: single = light 3 toggle, double = cycle light 3 brightness presets.
+    Button 4: single = light 4 toggle, double = cycle light 4 brightness presets.
+    Hold actions are intentionally ignored.
+  domain: automation
+  input:
+    z2m_action_topic:
+      name: Zigbee2MQTT action topic
+      description: MQTT topic for actions (e.g., zigbee2mqtt/Master Remote/action)
+      selector:
+        text: {}
+    light_1:
+      name: Light 1 Entity
+      selector:
+        entity:
+          domain: light
+    light_2:
+      name: Light 2 Entity
+      selector:
+        entity:
+          domain: light
+    light_3:
+      name: Light 3 Entity
+      selector:
+        entity:
+          domain: light
+    light_4:
+      name: Light 4 Entity
+      selector:
+        entity:
+          domain: light
+
+mode: single
+
+trigger:
+  - platform: mqtt
+    topic: !input z2m_action_topic
+
+variables:
+  l1: !input light_1
+  l2: !input light_2
+  l3: !input light_3
+  l4: !input light_4
+
+action:
+  - choose:
+      # --- BUTTON 1 ---
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.payload == '1_single' }}"
+        sequence:
+          - service: light.toggle
+            target:
+              entity_id: "{{ l1 }}"
+
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.payload == '1_double' }}"
+        sequence:
+          - variables:
+              current_pct: >
+                {% set b = state_attr(l1, 'brightness') | int(0) %}
+                {% if is_state(l1, 'off') %} 0
+                {% else %} {{ ((b / 255) * 100) | round(0) | int }}
+                {% endif %}
+              next_pct: >
+                {% if current_pct < 25 %} 25
+                {% elif current_pct < 50 %} 50
+                {% elif current_pct < 75 %} 75
+                {% elif current_pct < 100 %} 100
+                {% else %} 25
+                {% endif %}
+          - service: light.turn_on
+            target:
+              entity_id: "{{ l1 }}"
+            data:
+              brightness_pct: "{{ next_pct }}"
+
+      # --- BUTTON 2 ---
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.payload == '2_single' }}"
+        sequence:
+          - service: light.toggle
+            target:
+              entity_id: "{{ l2 }}"
+
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.payload == '2_double' }}"
+        sequence:
+          - variables:
+              current_pct: >
+                {% set b = state_attr(l2, 'brightness') | int(0) %}
+                {% if is_state(l2, 'off') %} 0
+                {% else %} {{ ((b / 255) * 100) | round(0) | int }}
+                {% endif %}
+              next_pct: >
+                {% if current_pct < 25 %} 25
+                {% elif current_pct < 50 %} 50
+                {% elif current_pct < 75 %} 75
+                {% elif current_pct < 100 %} 100
+                {% else %} 25
+                {% endif %}
+          - service: light.turn_on
+            target:
+              entity_id: "{{ l2 }}"
+            data:
+              brightness_pct: "{{ next_pct }}"
+
+      # --- BUTTON 3 ---
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.payload == '3_single' }}"
+        sequence:
+          - service: light.toggle
+            target:
+              entity_id: "{{ l3 }}"
+
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.payload == '3_double' }}"
+        sequence:
+          - variables:
+              current_pct: >
+                {% set b = state_attr(l3, 'brightness') | int(0) %}
+                {% if is_state(l3, 'off') %} 0
+                {% else %} {{ ((b / 255) * 100) | round(0) | int }}
+                {% endif %}
+              next_pct: >
+                {% if current_pct < 25 %} 25
+                {% elif current_pct < 50 %} 50
+                {% elif current_pct < 75 %} 75
+                {% elif current_pct < 100 %} 100
+                {% else %} 25
+                {% endif %}
+          - service: light.turn_on
+            target:
+              entity_id: "{{ l3 }}"
+            data:
+              brightness_pct: "{{ next_pct }}"
+
+      # --- BUTTON 4 ---
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.payload == '4_single' }}"
+        sequence:
+          - service: light.toggle
+            target:
+              entity_id: "{{ l4 }}"
+
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.payload == '4_double' }}"
+        sequence:
+          - variables:
+              current_pct: >
+                {% set b = state_attr(l4, 'brightness') | int(0) %}
+                {% if is_state(l4, 'off') %} 0
+                {% else %} {{ ((b / 255) * 100) | round(0) | int }}
+                {% endif %}
+              next_pct: >
+                {% if current_pct < 25 %} 25
+                {% elif current_pct < 50 %} 50
+                {% elif current_pct < 75 %} 75
+                {% elif current_pct < 100 %} 100
+                {% else %} 25
+                {% endif %}
+          - service: light.turn_on
+            target:
+              entity_id: "{{ l4 }}"
+            data:
+              brightness_pct: "{{ next_pct }}"
