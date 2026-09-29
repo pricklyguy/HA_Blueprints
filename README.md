@@ -57,6 +57,20 @@ Same device as above but with simple fan on/off toggle instead of speed cycling 
 
 ---
 
+## Zigbee2MQTT - H2 Quad Rocker Blinds + Light
+Aqara H2 Quad Rocker dedicated to blind control with dedicated open, stop, and close rockers, plus a light toggle.
+
+[![Import Blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https://raw.githubusercontent.com/pricklyguy/HA_Blueprints/refs/heads/main/blueprints/automation/aqara_quad_rocker_blinds_light.yaml)
+
+### Features
+- **Button 1 (Top Rocker):** Opens blinds
+- **Button 2 (Middle Rocker):** Stops blinds
+- **Button 3 (Bottom Rocker):** Closes blinds
+- **Button 4 (Wireless Rocker):** Toggles light
+- Supports multiple covers and multiple lights
+
+---
+
 ## Zigbee2MQTT - 3 Button Dual Blind Controller
 Control two independent blinds and both as a group using a 3-button Tuya Zigbee remote via Zigbee2MQTT.
 
