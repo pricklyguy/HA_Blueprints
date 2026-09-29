@@ -1,0 +1,70 @@
+blueprint:
+  name: Zigbee2MQTT - H2 Quad Rocker Blinds + Light
+  description: >
+    Control a blind/cover and a light using the Aqara H2 Quad Rocker via Zigbee2MQTT.
+    Top: Blinds Open
+    Middle: Blinds Stop
+    Bottom: Blinds Close
+    Wireless: Light Toggle
+  domain: automation
+  source_url: https://github.com/pricklyguy/HA_Blueprints/blob/main/blueprints/automation/aqara_quad_rocker_blinds_light.yaml
+
+  input:
+    z2m_action_topic:
+      name: Zigbee2MQTT action topic
+      description: e.g. zigbee2mqtt/Bedroom2 Scene Control/action
+      selector:
+        text: {}
+
+    blind_entity:
+      name: Blind/Cover entity
+      description: One or more covers controlled by the top/middle/bottom rockers.
+      selector:
+        entity:
+          domain: cover
+          multiple: true
+
+    light_entity:
+      name: Light entity
+      description: Light(s) toggled by the wireless rocker.
+      selector:
+        entity:
+          domain: light
+          multiple: true
+
+mode: queued
+max: 10
+
+trigger:
+  - platform: mqtt
+    topic: !input z2m_action_topic
+
+action:
+  - choose:
+      # --- TOP ROCKER (Blinds Open) ---
+      - conditions: "{{ trigger.payload == 'single_top' }}"
+        sequence:
+          - action: cover.open_cover
+            target:
+              entity_id: !input blind_entity
+
+      # --- CENTER ROCKER (Blinds Stop) ---
+      - conditions: "{{ trigger.payload == 'single_center' }}"
+        sequence:
+          - action: cover.stop_cover
+            target:
+              entity_id: !input blind_entity
+
+      # --- BOTTOM ROCKER (Blinds Close) ---
+      - conditions: "{{ trigger.payload == 'single_bottom' }}"
+        sequence:
+          - action: cover.close_cover
+            target:
+              entity_id: !input blind_entity
+
+      # --- WIRELESS ROCKER (Light Toggle) ---
+      - conditions: "{{ trigger.payload == 'single_wireless' }}"
+        sequence:
+          - action: light.toggle
+            target:
+              entity_id: !input light_entity
